@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives & Helpers
+    function isSignedIn() {
+      return true; // Relaxed for no-auth mode
+    }
+    
+    function isEmailVerified() {
+      return true; // Relaxed for no-auth mode
+    }
+
+    function isOwner(userId) {
+      return true; // Relaxed for no-auth mode
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Phase 4: Validation Blueprints
+    function isValidFlight(data) {
+      return data.flightNumber is string && data.flightNumber.size() <= 20
+          && data.origin is string && data.origin.size() <= 100
+          && data.originCode is string && data.originCode.size() <= 10
+          && data.destination is string && data.destination.size() <= 100
+          && data.destinationCode is string && data.destinationCode.size() <= 10
+          && data.departureTime is string && data.departureTime.size() <= 50
+          && data.arrivalTime is string && data.arrivalTime.size() <= 50
+          && data.departureTimestamp is int && data.departureTimestamp > 0
+          && data.price is number && data.price >= 0
+          && data.seats is map
+          && data.seats.First is int && data.seats.First >= 0
+          && data.seats.Business is int && data.seats.Business >= 0
+          && data.seats.Economy is int && data.seats.Economy >= 0
+          && data.occupiedSeats is list && data.occupiedSeats.size() <= 1000
+          && isOwner(data.userId);
+    }
+
+    function isValidBooking(data) {
+      return data.passengerName is string && data.passengerName.size() <= 100
+          && data.flightId is string && isValidId(data.flightId)
+          && data.flightNumber is string && data.flightNumber.size() <= 20
+          && data.origin is string && data.origin.size() <= 100
+          && data.originCode is string && data.originCode.size() <= 10
+          && data.destination is string && data.destination.size() <= 100
+          && data.destinationCode is string && data.destinationCode.size() <= 10
+          && data.departureTime is string && data.departureTime.size() <= 50
+          && data.gate is string && data.gate.size() <= 10
+          && data.seat is string && data.seat.size() <= 10
+          && data.class in ['First', 'Business', 'Economy']
+          && data.bookingCode is string && data.bookingCode.size() <= 20
+          && data.date is string && data.date.size() <= 50
+          && isOwner(data.userId);
+    }
+
+    // Collections
+    match /flights/{flightId} {
+      allow read: if true;
+      allow list: if true;
+      
+      allow create: if isValidFlight(incoming());
+      
+      allow update: if (
+        // Pilot/Owner update (Full modify)
+        (isValidFlight(incoming())) ||
+        // Passenger update (Booking logic - transactional decrement)
+        (
+          incoming().diff(existing()).affectedKeys().hasAny(['seats', 'occupiedSeats']) &&
+          incoming().diff(existing()).affectedKeys().size() <= 2 &&
+          incoming().origin == existing().origin &&
+          incoming().destination == existing().destination &&
+          incoming().flightNumber == existing().flightNumber
+        )
+      );
+
+      allow delete: if true;
+    }
+
+    match /bookings/{bookingId} {
+      allow read, get: if true;
+      allow list: if true;
+      
+      allow create: if isValidBooking(incoming())
+                       && exists(/databases/$(database)/documents/flights/$(incoming().flightId));
+      
+      allow delete: if true;
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "Flight": {
+      "title": "Flight",
+      "description": "A flight available for booking",
+      "type": "object",
+      "properties": {
+        "flightNumber": { "type": "string" },
+        "origin": { "type": "string" },
+        "originCode": { "type": "string" },
+        "destination": { "type": "string" },
+        "destinationCode": { "type": "string" },
+        "departureTime": { "type": "string" },
+        "arrivalTime": { "type": "string" },
+        "price": { "type": "number" },
+        "seats": {
+          "type": "object",
+          "properties": {
+            "First": { "type": "number" },
+            "Business": { "type": "number" },
+            "Economy": { "type": "number" }
+          },
+          "required": ["First", "Business", "Economy"]
+        },
+        "occupiedSeats": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "userId": { "type": "string" }
+      },
+      "required": ["flightNumber", "origin", "originCode", "destination", "destinationCode", "departureTime", "arrivalTime", "price", "seats", "userId"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A passenger's booking for a flight",
+      "type": "object",
+      "properties": {
+        "passengerName": { "type": "string" },
+        "flightNumber": { "type": "string" },
+        "origin": { "type": "string" },
+        "originCode": { "type": "string" },
+        "destination": { "type": "string" },
+        "destinationCode": { "type": "string" },
+        "departureTime": { "type": "string" },
+        "gate": { "type": "string" },
+        "seat": { "type": "string" },
+        "class": { "type": "string", "enum": ["First", "Business", "Economy"] },
+        "bookingCode": { "type": "string" },
+        "date": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["passengerName", "flightNumber", "origin", "originCode", "destination", "destinationCode", "departureTime", "gate", "seat", "class", "bookingCode", "date", "userId"]
+    }
+  },
+  "firestore": {
+    "flights": {
+      "schema": "Flight",
+      "description": "Collection of all available flights"
+    },
+    "bookings": {
+      "schema": "Booking",
+      "description": "Collection of passenger bookings"
+    }
+  }
+}
